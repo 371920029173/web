@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
-import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 
@@ -35,12 +34,14 @@ export default function FortuneTeller() {
   const [canFortune, setCanFortune] = useState(true)
   const [showResult, setShowResult] = useState(false)
   const [fortune, setFortune] = useState('')
-  const [currentAdvice, setCurrentAdvice] = useState({ good: [], bad: [] })
+  const [currentAdvice, setCurrentAdvice] = useState<{ good: string[]; bad: string[] }>({ good: [], bad: [] })
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    checkFortuneAvailability()
-  }, [])
+    if (user) {
+      checkFortuneAvailability()
+    }
+  }, [user])
 
   const checkFortuneAvailability = async () => {
     if (!user) return
@@ -49,29 +50,22 @@ export default function FortuneTeller() {
       const today = new Date()
       today.setHours(4, 0, 0, 0) // 东八区凌晨4点
       
-      const { data, error } = await supabase
-        .from('fortune_history')
-        .select('created_at')
-        .eq('user_id', user.id)
-        .gte('created_at', today.toISOString())
-        .single()
-
-      if (data) {
-        setCanFortune(false)
+      // 检查本地存储
+      const lastFortune = localStorage.getItem(`fortune_${user.id}`)
+      if (lastFortune) {
+        const lastDate = new Date(JSON.parse(lastFortune).date)
+        if (lastDate >= today) {
+          setCanFortune(false)
+        }
       }
     } catch (error) {
-      // 没有今天的记录，可以占卜
+      // 没有记录，可以占卜
       setCanFortune(true)
     }
   }
 
   const handleFortune = async () => {
-    if (!user) {
-      toast.error('请先登录')
-      return
-    }
-
-    if (!canFortune) {
+    if (user && !canFortune) {
       toast.error('今天已经占卜过了，明天再来吧！')
       return
     }
@@ -79,7 +73,7 @@ export default function FortuneTeller() {
     setLoading(true)
 
     // 模拟占卜过程
-    setTimeout(async () => {
+    setTimeout(() => {
       const randomFortune = fortunes[Math.floor(Math.random() * fortunes.length)]
       const randomAdvice = advice[randomFortune as keyof typeof advice]
 
@@ -88,21 +82,16 @@ export default function FortuneTeller() {
       setShowResult(true)
       setCanFortune(false)
 
-      // 保存占卜结果
-      try {
-        await supabase
-          .from('fortune_history')
-          .insert({
-            user_id: user.id,
-            fortune: randomFortune,
-            advice: JSON.stringify(randomAdvice),
-          })
-
-        toast.success('占卜完成！')
-      } catch (error) {
-        console.error('Error saving fortune:', error)
+      // 保存占卜结果到本地存储
+      if (user) {
+        localStorage.setItem(`fortune_${user.id}`, JSON.stringify({
+          fortune: randomFortune,
+          advice: randomAdvice,
+          date: new Date().toISOString()
+        }))
       }
 
+      toast.success('占卜完成！')
       setLoading(false)
     }, 2000)
   }
@@ -200,6 +189,19 @@ export default function FortuneTeller() {
                 ))}
               </ul>
             </div>
+          </div>
+
+          {/* 重新占卜按钮 */}
+          <div className="text-center pt-4">
+            <button
+              onClick={() => {
+                setShowResult(false)
+                setCanFortune(true)
+              }}
+              className="text-sm text-primary-600 hover:text-primary-700"
+            >
+              重新占卜
+            </button>
           </div>
         </motion.div>
       )}

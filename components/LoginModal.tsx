@@ -14,10 +14,17 @@ interface LoginModalProps {
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const { signIn, signUp } = useAuth()
   const [isSignUp, setIsSignUp] = useState(false)
-  const [email, setEmail] = useState('')
+  const [nickname, setNickname] = useState('')
   const [password, setPassword] = useState('')
-  const [username, setUsername] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // 模拟用户数据，实际应该从数据库获取
+  const existingUsers = [
+    { nickname: '平台管理员', password: '371920029173Abcd', isAdmin: true },
+    { nickname: '技术达人', password: '123456', isAdmin: false },
+    { nickname: '幸运星', password: '123456', isAdmin: false },
+  ]
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,12 +32,41 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
     try {
       if (isSignUp) {
-        await signUp(email, password, username)
-        toast.success('注册成功！请检查邮箱验证')
+        // 检查重名
+        const existingUser = existingUsers.find(user => user.nickname === nickname)
+        if (existingUser) {
+          toast.error('昵称已被使用，请选择其他昵称')
+          return
+        }
+
+        // 检查密码确认
+        if (password !== confirmPassword) {
+          toast.error('两次输入的密码不一致')
+          return
+        }
+
+        // 检查密码强度
+        if (password.length < 6) {
+          toast.error('密码长度至少6位')
+          return
+        }
+
+        await signUp(nickname, password)
+        toast.success('注册成功！')
+        onClose()
+        resetForm()
       } else {
-        await signIn(email, password)
+        // 登录
+        const user = existingUsers.find(u => u.nickname === nickname && u.password === password)
+        if (!user) {
+          toast.error('昵称或密码错误')
+          return
+        }
+
+        await signIn(nickname, password)
         toast.success('登录成功！')
         onClose()
+        resetForm()
       }
     } catch (error: any) {
       toast.error(error.message || '操作失败')
@@ -40,9 +76,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   }
 
   const resetForm = () => {
-    setEmail('')
+    setNickname('')
     setPassword('')
-    setUsername('')
+    setConfirmPassword('')
     setIsSignUp(false)
   }
 
@@ -76,34 +112,18 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {isSignUp && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    用户名
-                  </label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="input-field"
-                    placeholder="请输入用户名"
-                    required
-                    maxLength={20}
-                  />
-                </div>
-              )}
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  邮箱
+                  昵称
                 </label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
                   className="input-field"
-                  placeholder="请输入邮箱"
+                  placeholder="请输入昵称"
                   required
+                  maxLength={20}
                 />
               </div>
 
@@ -121,6 +141,23 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   minLength={6}
                 />
               </div>
+
+              {isSignUp && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    确认密码
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="input-field"
+                    placeholder="请再次输入密码"
+                    required
+                    minLength={6}
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -148,6 +185,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               >
                 {isSignUp ? '已有账户？点击登录' : '没有账户？点击注册'}
               </button>
+            </div>
+
+            {/* 测试账号提示 */}
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-600 mb-2">测试账号：</p>
+              <div className="text-xs space-y-1">
+                <p>管理员：平台管理员 / 371920029173Abcd</p>
+                <p>用户：技术达人 / 123456</p>
+                <p>用户：幸运星 / 123456</p>
+              </div>
             </div>
           </motion.div>
         </motion.div>

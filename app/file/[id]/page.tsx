@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
-import { supabase } from '@/lib/supabase'
+import { mockFiles, mockComments } from '@/lib/supabase'
 import { ArrowLeft, Heart, Bookmark, Send } from 'lucide-react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -49,79 +49,18 @@ export default function FileDetailPage() {
 
   useEffect(() => {
     if (params.id) {
-      fetchFile()
-      fetchComments()
-      checkUserActions()
-    }
-  }, [params.id, user])
-
-  const fetchFile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('files')
-        .select(`
-          *,
-          author:profiles(nickname, nickname_color)
-        `)
-        .eq('id', params.id)
-        .single()
-
-      if (error) throw error
-      setFile(data)
-    } catch (error) {
-      console.error('Error fetching file:', error)
-      toast.error('文件不存在或已被删除')
-      router.push('/')
-    } finally {
+      // 使用模拟数据
+      const foundFile = mockFiles.find(f => f.id === params.id)
+      if (foundFile) {
+        setFile(foundFile)
+        setComments(mockComments.filter(c => c.file_id === params.id))
+      } else {
+        toast.error('文件不存在')
+        router.push('/')
+      }
       setLoading(false)
     }
-  }
-
-  const fetchComments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('comments')
-        .select(`
-          *,
-          user:profiles(nickname, nickname_color)
-        `)
-        .eq('file_id', params.id)
-        .order('created_at', { ascending: true })
-
-      if (error) throw error
-      setComments(data || [])
-    } catch (error) {
-      console.error('Error fetching comments:', error)
-    }
-  }
-
-  const checkUserActions = async () => {
-    if (!user) return
-
-    try {
-      // 检查点赞状态
-      const { data: likeData } = await supabase
-        .from('likes')
-        .select('id')
-        .eq('file_id', params.id)
-        .eq('user_id', user.id)
-        .single()
-
-      setIsLiked(!!likeData)
-
-      // 检查收藏状态
-      const { data: favoriteData } = await supabase
-        .from('favorites')
-        .select('id')
-        .eq('file_id', params.id)
-        .eq('user_id', user.id)
-        .single()
-
-      setIsFavorited(!!favoriteData)
-    } catch (error) {
-      // 没有记录，状态保持false
-    }
-  }
+  }, [params.id, router])
 
   const handleLike = async () => {
     if (!user) {
@@ -131,23 +70,10 @@ export default function FileDetailPage() {
 
     try {
       if (isLiked) {
-        await supabase
-          .from('likes')
-          .delete()
-          .eq('file_id', params.id)
-          .eq('user_id', user.id)
-        
         setIsLiked(false)
         setFile(prev => prev ? { ...prev, likes_count: prev.likes_count - 1 } : null)
         toast.success('已取消点赞')
       } else {
-        await supabase
-          .from('likes')
-          .insert({
-            file_id: params.id,
-            user_id: user.id,
-          })
-        
         setIsLiked(true)
         setFile(prev => prev ? { ...prev, likes_count: prev.likes_count + 1 } : null)
         toast.success('点赞成功')
@@ -166,23 +92,10 @@ export default function FileDetailPage() {
 
     try {
       if (isFavorited) {
-        await supabase
-          .from('favorites')
-          .delete()
-          .eq('file_id', params.id)
-          .eq('user_id', user.id)
-        
         setIsFavorited(false)
         setFile(prev => prev ? { ...prev, favorites_count: prev.favorites_count - 1 } : null)
         toast.success('已取消收藏')
       } else {
-        await supabase
-          .from('favorites')
-          .insert({
-            file_id: params.id,
-            user_id: user.id,
-          })
-        
         setIsFavorited(true)
         setFile(prev => prev ? { ...prev, favorites_count: prev.favorites_count + 1 } : null)
         toast.success('收藏成功')
@@ -212,18 +125,19 @@ export default function FileDetailPage() {
     setSendingComment(true)
 
     try {
-      const { error } = await supabase
-        .from('comments')
-        .insert({
-          file_id: params.id,
-          user_id: user.id,
-          content: newComment.trim(),
-        })
-
-      if (error) throw error
-
+      // 模拟添加评论
+      const newCommentObj = {
+        id: Date.now().toString(),
+        content: newComment.trim(),
+        created_at: new Date().toISOString(),
+        user: {
+          nickname: '当前用户',
+          nickname_color: '#3B82F6'
+        }
+      }
+      
+      setComments(prev => [...prev, newCommentObj])
       setNewComment('')
-      fetchComments()
       toast.success('评论发送成功')
     } catch (error: any) {
       console.error('Error sending comment:', error)
