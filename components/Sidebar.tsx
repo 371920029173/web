@@ -1,22 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '@/components/AuthProvider'
+import { useRouter } from 'next/navigation'
 import { 
-  Menu, 
-  X, 
   Home, 
   Upload, 
-  MessageCircle, 
-  Users, 
+  MessageSquare, 
   Settings, 
-  Shield,
+  Crown,
+  User,
   FileText,
-  Trash2,
-  Crown
+  LogOut,
+  X
 } from 'lucide-react'
-import Link from 'next/link'
-import { useAuth } from '@/components/AuthProvider'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface SidebarProps {
   isOpen: boolean
@@ -24,24 +22,32 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
-  const { user } = useAuth()
-  const isAdmin = user?.email === 'admin@platform.com' // 临时判断，后续会改进
+  const { user, signOut } = useAuth()
+  const router = useRouter()
+  const isAdmin = user?.is_admin // 修复：使用正确的属性名
 
   const menuItems = [
     { icon: Home, label: '首页', href: '/' },
-    { icon: Upload, label: '上传文件', href: '/upload' },
-    { icon: MessageCircle, label: '私信', href: '/messages' },
+    { icon: Upload, label: '上传文件', href: '/upload', requireAuth: true },
+    { icon: MessageSquare, label: '私信', href: '/messages', requireAuth: true },
     ...(isAdmin ? [
-      { icon: Users, label: '用户管理', href: '/admin/users' },
-      { icon: FileText, label: '文件管理', href: '/admin/files' },
-      { icon: Shield, label: '权限管理', href: '/admin/permissions' },
-      { icon: Settings, label: '系统设置', href: '/admin/settings' },
+      { icon: Crown, label: '管理员', href: '/admin', requireAuth: true }
     ] : []),
+    { icon: Settings, label: '设置', href: '/settings', requireAuth: true }
   ]
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      router.push('/')
+    } catch (error) {
+      console.error('Sign out error:', error)
+    }
+  }
 
   return (
     <>
-      {/* 遮罩层 */}
+      {/* 移动端遮罩 */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -56,77 +62,95 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
       {/* 侧边栏 */}
       <motion.div
-        initial={{ x: -300 }}
-        animate={{ x: isOpen ? 0 : -300 }}
+        initial={{ x: -320 }}
+        animate={{ x: isOpen ? 0 : -320 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className={`fixed left-0 top-0 h-full w-80 bg-white shadow-xl z-50 lg:translate-x-0 lg:static lg:z-auto ${
+        className={`fixed left-0 top-0 h-full w-80 bg-white shadow-xl z-50 lg:translate-x-0 lg:shadow-none ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex flex-col h-full">
-          {/* 头部 */}
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-xl font-bold text-gray-900">菜单</h2>
-            <button
-              onClick={onToggle}
-              className="lg:hidden p-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+        {/* 头部 */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900">文件分享平台</h2>
+          <button
+            onClick={onToggle}
+            className="lg:hidden p-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-          {/* 用户信息 */}
-          {user && (
-            <div className="p-4 border-b bg-gray-50">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-medium">
-                    {user.email?.charAt(0).toUpperCase()}
+        {/* 用户信息 */}
+        {user && (
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center">
+                <User className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <span 
+                    className="font-medium text-gray-900"
+                    style={{ color: user.nickname_color }}
+                  >
+                    {isAdmin ? '平台管理员' : user.nickname}
                   </span>
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">
-                    {isAdmin ? '平台管理员' : user.email}
-                  </p>
                   {isAdmin && (
-                    <div className="flex items-center space-x-1 mt-1">
-                      <Crown className="h-3 w-3 text-yellow-500" />
-                      <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full">
-                        管理员
-                      </span>
-                    </div>
+                    <Crown className="h-4 w-4 text-yellow-500" />
                   )}
                 </div>
+                <p className="text-sm text-gray-500">{user.email}</p>
               </div>
             </div>
-          )}
-
-          {/* 菜单项 */}
-          <nav className="flex-1 p-4 space-y-2">
-            {menuItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center space-x-3 p-3 rounded-lg text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-                onClick={() => {
-                  // 在移动端点击菜单项后关闭侧边栏
-                  if (window.innerWidth < 1024) {
-                    onToggle()
-                  }
-                }}
-              >
-                <item.icon className="h-5 w-5" />
-                <span>{item.label}</span>
-              </Link>
-            ))}
-          </nav>
-
-          {/* 底部 */}
-          <div className="p-4 border-t">
-            <div className="text-xs text-gray-500 text-center">
-              © 2024 文件分享平台
-            </div>
           </div>
+        )}
+
+        {/* 导航菜单 */}
+        <nav className="flex-1 p-6">
+          <ul className="space-y-2">
+            {menuItems.map((item) => {
+              if (item.requireAuth && !user) return null
+              
+              return (
+                <li key={item.href}>
+                  <button
+                    onClick={() => {
+                      router.push(item.href)
+                      onToggle()
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-lg transition-colors"
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.label}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+
+        {/* 底部 */}
+        <div className="p-6 border-t border-gray-200">
+          {user ? (
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+            >
+              <LogOut className="h-5 w-5" />
+              <span>退出登录</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                router.push('/')
+                onToggle()
+              }}
+              className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-lg transition-colors"
+            >
+              <User className="h-5 w-5" />
+              <span>登录</span>
+            </button>
+          )}
         </div>
       </motion.div>
     </>
