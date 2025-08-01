@@ -177,7 +177,7 @@ export default function HomePage() {
                       <div className="flex items-center space-x-2">
                         <User className="h-5 w-5 text-gray-600" />
                         <span className="text-sm text-gray-700">
-                          {(user as any).nickname || user.email}
+                          {user.nickname || user.email}
                         </span>
                         <button
                           onClick={handleSignOut}
