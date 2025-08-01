@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
-import { mockFiles } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { Search, Plus, Heart, Bookmark, MessageCircle, User, LogOut, Menu } from 'lucide-react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -65,11 +65,7 @@ export default function HomePage() {
   const filesPerPage = 10
 
   useEffect(() => {
-    // 使用模拟数据
-    setTimeout(() => {
-      setFiles(mockFiles)
-      setLoading(false)
-    }, 1000)
+    fetchFiles()
   }, [])
 
   useEffect(() => {
@@ -86,8 +82,23 @@ export default function HomePage() {
   }, [searchQuery, files])
 
   const fetchFiles = async () => {
-    // 模拟数据更新
-    setFiles(mockFiles)
+    try {
+      const { data, error } = await supabase
+        .from('files')
+        .select(`
+          *,
+          author:profiles(nickname, nickname_color)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setFiles(data || [])
+    } catch (error) {
+      console.error('Error fetching files:', error)
+      toast.error('获取文件列表失败')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSignOut = async () => {
@@ -166,7 +177,7 @@ export default function HomePage() {
                       <div className="flex items-center space-x-2">
                         <User className="h-5 w-5 text-gray-600" />
                         <span className="text-sm text-gray-700">
-                          {user.nickname || user.email}
+                          {(user as any).nickname || user.email}
                         </span>
                         <button
                           onClick={handleSignOut}
