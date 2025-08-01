@@ -7,62 +7,93 @@ import { supabase } from '@/lib/supabase'
 interface AuthContextType {
   user: User | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, username: string) => Promise<void>
+  signIn: (nickname: string, password: string) => Promise<void>
+  signUp: (nickname: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// 模拟用户数据
+const mockUsers = [
+  { 
+    id: '1', 
+    nickname: '平台管理员', 
+    password: '371920029173Abcd', 
+    isAdmin: true,
+    nickname_color: '#8B5CF6'
+  },
+  { 
+    id: '2', 
+    nickname: '技术达人', 
+    password: '123456', 
+    isAdmin: false,
+    nickname_color: '#10B981'
+  },
+  { 
+    id: '3', 
+    nickname: '幸运星', 
+    password: '123456', 
+    isAdmin: false,
+    nickname_color: '#F59E0B'
+  },
+]
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // 获取当前用户
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-      setLoading(false)
+    // 检查本地存储的用户信息
+    const savedUser = localStorage.getItem('currentUser')
+    if (savedUser) {
+      setUser(JSON.parse(savedUser))
     }
-
-    getUser()
-
-    // 监听认证状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null)
-        setLoading(false)
-      }
-    )
-
-    return () => subscription.unsubscribe()
+    setLoading(false)
   }, [])
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (error) throw error
+  const signIn = async (nickname: string, password: string) => {
+    const foundUser = mockUsers.find(u => u.nickname === nickname && u.password === password)
+    if (!foundUser) {
+      throw new Error('昵称或密码错误')
+    }
+
+    // 创建用户对象
+    const userObj = {
+      id: foundUser.id,
+      nickname: foundUser.nickname,
+      isAdmin: foundUser.isAdmin,
+      nickname_color: foundUser.nickname_color,
+      email: `${foundUser.nickname}@platform.com` // 临时邮箱
+    } as any
+
+    setUser(userObj)
+    localStorage.setItem('currentUser', JSON.stringify(userObj))
   }
 
-  const signUp = async (email: string, password: string, username: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
+  const signUp = async (nickname: string, password: string) => {
+    // 检查昵称是否已存在
+    const existingUser = mockUsers.find(u => u.nickname === nickname)
+    if (existingUser) {
+      throw new Error('昵称已被使用')
+    }
+
+    // 模拟注册成功
+    const newUser = {
+      id: Date.now().toString(),
+      nickname,
       password,
-      options: {
-        data: {
-          username,
-        },
-      },
-    })
-    if (error) throw error
+      isAdmin: false,
+      nickname_color: '#3B82F6'
+    }
+
+    // 在实际应用中，这里应该保存到数据库
+    mockUsers.push(newUser)
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    setUser(null)
+    localStorage.removeItem('currentUser')
   }
 
   return (

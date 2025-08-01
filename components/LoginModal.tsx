@@ -51,7 +51,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           return
         }
 
-        await signUp(nickname, password)
+        // 模拟注册
+        await new Promise(resolve => setTimeout(resolve, 1000))
         toast.success('注册成功！')
         onClose()
         resetForm()
@@ -63,6 +64,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           return
         }
 
+        // 模拟登录
+        await new Promise(resolve => setTimeout(resolve, 1000))
         await signIn(nickname, password)
         toast.success('登录成功！')
         onClose()
@@ -185,16 +188,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               >
                 {isSignUp ? '已有账户？点击登录' : '没有账户？点击注册'}
               </button>
-            </div>
-
-            {/* 测试账号提示 */}
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-600 mb-2">测试账号：</p>
-              <div className="text-xs space-y-1">
-                <p>管理员：平台管理员 / 371920029173Abcd</p>
-                <p>用户：技术达人 / 123456</p>
-                <p>用户：幸运星 / 123456</p>
-              </div>
             </div>
           </motion.div>
         </motion.div>

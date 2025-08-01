@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
-import { Upload, ArrowLeft, Image, Video, Music, FileText } from 'lucide-react'
+import { Upload, ArrowLeft, Image, Video, Music, FileText, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 
@@ -23,13 +23,42 @@ export default function UploadPage() {
   const [content, setContent] = useState('')
   const [files, setFiles] = useState<FilePreview[]>([])
   const [uploading, setUploading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || [])
+    processFiles(selectedFiles)
+  }
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
     
-    selectedFiles.forEach(file => {
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    processFiles(droppedFiles)
+  }
+
+  const processFiles = (fileList: File[]) => {
+    fileList.forEach(file => {
       const fileType = getFileType(file.type)
       if (fileType) {
+        // 检查文件大小（50MB限制）
+        if (file.size > 50 * 1024 * 1024) {
+          toast.error(`${file.name} 文件过大，请选择小于50MB的文件`)
+          return
+        }
+
         const preview: FilePreview = {
           id: Date.now().toString() + Math.random(),
           name: file.name,
@@ -38,6 +67,9 @@ export default function UploadPage() {
           size: file.size
         }
         setFiles(prev => [...prev, preview])
+        toast.success(`已添加 ${file.name}`)
+      } else {
+        toast.error(`${file.name} 不支持的文件类型`)
       }
     })
   }
@@ -46,7 +78,7 @@ export default function UploadPage() {
     if (mimeType.startsWith('image/')) return 'image'
     if (mimeType.startsWith('video/')) return 'video'
     if (mimeType.startsWith('audio/')) return 'audio'
-    if (mimeType.includes('document') || mimeType.includes('pdf') || mimeType.includes('text')) return 'document'
+    if (mimeType.includes('document') || mimeType.includes('pdf') || mimeType.includes('text') || mimeType.includes('word')) return 'document'
     return null
   }
 
@@ -122,9 +154,9 @@ export default function UploadPage() {
           </div>
           <button
             onClick={() => removeFile(file.id)}
-            className="text-red-500 hover:text-red-700 transition-colors"
+            className="text-red-500 hover:text-red-700 transition-colors p-1"
           >
-            ×
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -233,11 +265,21 @@ export default function UploadPage() {
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 上传文件
                 <span className="text-xs text-gray-500 ml-2">
-                  （支持图片、视频、音频、文档）
+                  （支持图片、视频、音频、文档，单个文件最大50MB）
                 </span>
               </label>
               
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors">
+              <div 
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                  dragActive 
+                    ? 'border-primary-400 bg-primary-50' 
+                    : 'border-gray-300 hover:border-primary-400'
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="mt-4">
                   <label className="cursor-pointer">
@@ -254,6 +296,9 @@ export default function UploadPage() {
                   </label>
                   <p className="text-sm text-gray-500 mt-2">
                     拖拽文件到此处或点击选择
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    支持格式：JPG, PNG, GIF, MP4, AVI, MP3, WAV, DOC, DOCX, PDF, TXT
                   </p>
                 </div>
               </div>

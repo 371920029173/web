@@ -29,7 +29,7 @@ export default function AdBanner({ ads, interval = 5000 }: AdBannerProps) {
 
   if (ads.length === 0) {
     return (
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 px-4 text-center rounded-lg">
+      <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 px-4 text-center rounded-lg border border-gray-200">
         <div className="animate-pulse">
           🎉 欢迎来到文件分享平台！在这里分享你的想法和创意 🎉
         </div>
@@ -40,7 +40,7 @@ export default function AdBanner({ ads, interval = 5000 }: AdBannerProps) {
   const currentAd = ads[currentAdIndex]
 
   return (
-    <div className="relative overflow-hidden rounded-lg">
+    <div className="relative overflow-hidden rounded-lg border border-gray-200">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentAd.id}
@@ -50,7 +50,7 @@ export default function AdBanner({ ads, interval = 5000 }: AdBannerProps) {
           transition={{ duration: 0.5 }}
           className="py-2 px-4 text-center cursor-pointer"
           style={{
-            backgroundColor: currentAd.backgroundColor || 'linear-gradient(to right, #3B82F6, #8B5CF6)',
+            background: currentAd.backgroundColor || 'linear-gradient(to right, #3B82F6, #8B5CF6)',
             color: currentAd.textColor || '#FFFFFF'
           }}
           onClick={() => {

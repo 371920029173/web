@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
-import { Send, Image as ImageIcon, ArrowLeft, User } from 'lucide-react'
+import { Send, Image as ImageIcon, ArrowLeft, User, Search, Plus } from 'lucide-react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 
@@ -30,6 +30,12 @@ interface Conversation {
   unreadCount: number
 }
 
+interface User {
+  id: string
+  nickname: string
+  nickname_color: string
+}
+
 export default function MessagesPage() {
   const { user } = useAuth()
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -38,18 +44,30 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('')
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [sending, setSending] = useState(false)
+  const [showUserSearch, setShowUserSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<User[]>([])
 
-  // 模拟数据
+  // 模拟用户数据
+  const mockUsers: User[] = [
+    { id: '1', nickname: '平台管理员', nickname_color: '#8B5CF6' },
+    { id: '2', nickname: '技术达人', nickname_color: '#10B981' },
+    { id: '3', nickname: '幸运星', nickname_color: '#F59E0B' },
+    { id: '4', nickname: '编程新手', nickname_color: '#3B82F6' },
+    { id: '5', nickname: '设计达人', nickname_color: '#EC4899' },
+  ]
+
+  // 模拟会话数据
   const mockConversations: Conversation[] = [
     {
-      id: '1',
+      id: '2',
       user: { nickname: '技术达人', nickname_color: '#10B981' },
       lastMessage: '这个平台真的很棒！',
       lastMessageTime: new Date(Date.now() - 3600000).toISOString(),
       unreadCount: 2
     },
     {
-      id: '2',
+      id: '3',
       user: { nickname: '幸运星', nickname_color: '#F59E0B' },
       lastMessage: '占卜功能很有趣',
       lastMessageTime: new Date(Date.now() - 7200000).toISOString(),
@@ -86,13 +104,76 @@ export default function MessagesPage() {
 
   useEffect(() => {
     setConversations(mockConversations)
+    loadMessages()
   }, [])
 
   useEffect(() => {
     if (selectedConversation) {
-      setMessages(mockMessages)
+      loadMessages()
+      // 标记消息为已读
+      markAsRead(selectedConversation)
     }
   }, [selectedConversation])
+
+  // 加载消息（保留一个月）
+  const loadMessages = () => {
+    const oneMonthAgo = new Date()
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+    
+    const filteredMessages = mockMessages.filter(msg => 
+      new Date(msg.created_at) > oneMonthAgo
+    )
+    setMessages(filteredMessages)
+  }
+
+  // 标记消息为已读
+  const markAsRead = (conversationId: string) => {
+    setConversations(prev => prev.map(conv => 
+      conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
+    ))
+  }
+
+  // 搜索用户
+  const handleSearchUsers = () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    const results = mockUsers.filter(u => 
+      u.nickname.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      u.id !== user?.id
+    )
+    setSearchResults(results)
+  }
+
+  useEffect(() => {
+    handleSearchUsers()
+  }, [searchQuery])
+
+  // 开始新对话
+  const startNewConversation = (targetUser: User) => {
+    const newConversation: Conversation = {
+      id: targetUser.id,
+      user: targetUser,
+      lastMessage: '',
+      lastMessageTime: new Date().toISOString(),
+      unreadCount: 0
+    }
+
+    setConversations(prev => {
+      const existing = prev.find(c => c.id === targetUser.id)
+      if (existing) {
+        return prev
+      }
+      return [newConversation, ...prev]
+    })
+
+    setSelectedConversation(targetUser.id)
+    setShowUserSearch(false)
+    setSearchQuery('')
+    setSearchResults([])
+  }
 
   const handleSendMessage = async () => {
     if (!selectedConversation || (!newMessage.trim() && !selectedImage)) {
@@ -106,12 +187,12 @@ export default function MessagesPage() {
       // 模拟发送消息
       const newMsg: Message = {
         id: Date.now().toString(),
-        sender_id: '1',
+        sender_id: user?.id || '1',
         receiver_id: selectedConversation,
         content: newMessage.trim() || '',
         image_url: selectedImage ? URL.createObjectURL(selectedImage) : undefined,
         created_at: new Date().toISOString(),
-        sender: { nickname: '当前用户', nickname_color: '#3B82F6' }
+        sender: { nickname: user?.nickname || '当前用户', nickname_color: user?.nickname_color || '#3B82F6' }
       }
 
       setMessages(prev => [...prev, newMsg])
@@ -172,8 +253,59 @@ export default function MessagesPage() {
             {/* 会话列表 */}
             <div className="w-1/3 border-r bg-gray-50">
               <div className="p-4 border-b">
-                <h3 className="font-medium text-gray-900">会话列表</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-gray-900">会话列表</h3>
+                  <button
+                    onClick={() => setShowUserSearch(!showUserSearch)}
+                    className="p-1 text-gray-600 hover:text-primary-600 transition-colors"
+                    title="搜索用户"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                
+                {/* 搜索用户 */}
+                {showUserSearch && (
+                  <div className="mt-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        placeholder="搜索用户昵称..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      />
+                    </div>
+                    
+                    {/* 搜索结果 */}
+                    {searchResults.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {searchResults.map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => startNewConversation(user)}
+                            className="w-full text-left p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className="w-6 h-6 bg-primary-600 rounded-full flex items-center justify-center">
+                                <User className="h-3 w-3 text-white" />
+                              </div>
+                              <span
+                                className="text-sm font-medium"
+                                style={{ color: user.nickname_color }}
+                              >
+                                {user.nickname}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+              
               <div className="overflow-y-auto h-full">
                 {conversations.map((conversation) => (
                   <div
@@ -239,36 +371,42 @@ export default function MessagesPage() {
 
                   {/* 消息列表 */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${
-                          message.sender_id === '1' ? 'justify-end' : 'justify-start'
-                        }`}
-                      >
-                        <div
-                          className={`max-w-xs lg:max-w-md ${
-                            message.sender_id === '1'
-                              ? 'bg-primary-600 text-white'
-                              : 'bg-gray-100 text-gray-900'
-                          } rounded-lg p-3`}
-                        >
-                          {message.content && (
-                            <p className="text-sm mb-2">{message.content}</p>
-                          )}
-                          {message.image_url && (
-                            <img
-                              src={message.image_url}
-                              alt="消息图片"
-                              className="max-w-full rounded"
-                            />
-                          )}
-                          <p className="text-xs opacity-70 mt-1">
-                            {formatTime(message.created_at)}
-                          </p>
-                        </div>
+                    {messages.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        开始新的对话吧！
                       </div>
-                    ))}
+                    ) : (
+                      messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${
+                            message.sender_id === user?.id ? 'justify-end' : 'justify-start'
+                          }`}
+                        >
+                          <div
+                            className={`max-w-xs lg:max-w-md ${
+                              message.sender_id === user?.id
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-gray-100 text-gray-900'
+                            } rounded-lg p-3`}
+                          >
+                            {message.content && (
+                              <p className="text-sm mb-2">{message.content}</p>
+                            )}
+                            {message.image_url && (
+                              <img
+                                src={message.image_url}
+                                alt="消息图片"
+                                className="max-w-full rounded"
+                              />
+                            )}
+                            <p className="text-xs opacity-70 mt-1">
+                              {formatTime(message.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
 
                   {/* 输入区域 */}

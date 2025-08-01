@@ -56,6 +56,11 @@ export default function FortuneTeller() {
         const lastDate = new Date(JSON.parse(lastFortune).date)
         if (lastDate >= today) {
           setCanFortune(false)
+          // 显示昨天的结果
+          const result = JSON.parse(lastFortune)
+          setFortune(result.fortune)
+          setCurrentAdvice(result.advice)
+          setShowResult(true)
         }
       }
     } catch (error) {
@@ -189,19 +194,6 @@ export default function FortuneTeller() {
                 ))}
               </ul>
             </div>
-          </div>
-
-          {/* 重新占卜按钮 */}
-          <div className="text-center pt-4">
-            <button
-              onClick={() => {
-                setShowResult(false)
-                setCanFortune(true)
-              }}
-              className="text-sm text-primary-600 hover:text-primary-700"
-            >
-              重新占卜
-            </button>
           </div>
         </motion.div>
       )}
